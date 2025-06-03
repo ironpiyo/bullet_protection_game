@@ -64,6 +64,10 @@ type Game struct {
 	gameOverScale    float64  // ゲームオーバーテキストのスケール
 	rankingAppear    float64  // ランキング表示の進行度
 	scoreAnimations  []ScoreAnimation // スコアアニメーション
+	
+	// 難易度関連の変数
+	difficulty       int       // 現在の難易度レベル
+	lastDifficultyIncrease time.Time // 最後に難易度を上げた時間
 }
 
 // NewGame は新しいゲームインスタンスを作成する
@@ -86,6 +90,10 @@ func NewGame() *Game {
 		gameOverScale: 0.5,
 		rankingAppear: 0,
 		scoreAnimations: make([]ScoreAnimation, 0),
+		
+		// 難易度の初期化
+		difficulty: 1,
+		lastDifficultyIncrease: time.Now(),
 	}
 
 	// 初期の弾を生成
@@ -104,27 +112,32 @@ func (g *Game) addRandomBullet() {
 	
 	side := rand.Intn(4) // 0: 上, 1: 右, 2: 下, 3: 左
 	
+	// 難易度に応じて弾の速度を調整
+	speedMultiplier := 1.0 + float64(g.difficulty-1)*0.1 // 難易度ごとに10%ずつ速くなる
+	minSpeed := bulletSpeedMin * speedMultiplier
+	maxSpeed := bulletSpeedMax * speedMultiplier
+	
 	switch side {
 	case 0: // 上から
 		x = rand.Float64() * screenWidth
 		y = -bulletSize
-		vx = (rand.Float64()*2 - 1) * bulletSpeedMax
-		vy = rand.Float64()*(bulletSpeedMax-bulletSpeedMin) + bulletSpeedMin
+		vx = (rand.Float64()*2 - 1) * maxSpeed
+		vy = rand.Float64()*(maxSpeed-minSpeed) + minSpeed
 	case 1: // 右から
 		x = screenWidth + bulletSize
 		y = rand.Float64() * screenHeight
-		vx = -(rand.Float64()*(bulletSpeedMax-bulletSpeedMin) + bulletSpeedMin)
-		vy = (rand.Float64()*2 - 1) * bulletSpeedMax
+		vx = -(rand.Float64()*(maxSpeed-minSpeed) + minSpeed)
+		vy = (rand.Float64()*2 - 1) * maxSpeed
 	case 2: // 下から
 		x = rand.Float64() * screenWidth
 		y = screenHeight + bulletSize
-		vx = (rand.Float64()*2 - 1) * bulletSpeedMax
-		vy = -(rand.Float64()*(bulletSpeedMax-bulletSpeedMin) + bulletSpeedMin)
+		vx = (rand.Float64()*2 - 1) * maxSpeed
+		vy = -(rand.Float64()*(maxSpeed-minSpeed) + minSpeed)
 	case 3: // 左から
 		x = -bulletSize
 		y = rand.Float64() * screenHeight
-		vx = rand.Float64()*(bulletSpeedMax-bulletSpeedMin) + bulletSpeedMin
-		vy = (rand.Float64()*2 - 1) * bulletSpeedMax
+		vx = rand.Float64()*(maxSpeed-minSpeed) + minSpeed
+		vy = (rand.Float64()*2 - 1) * maxSpeed
 	}
 	
 	// ランダムな色を生成
@@ -186,10 +199,24 @@ func (g *Game) Update() error {
 
 	// 経過時間を更新
 	g.currentTime = time.Since(g.startTime).Seconds()
+	
+	// 6秒ごとに難易度を上げる
+	if time.Since(g.lastDifficultyIncrease).Seconds() > 6.0 {
+		g.difficulty++
+		g.lastDifficultyIncrease = time.Now()
+		
+		// デバッグ用に難易度上昇を表示
+		log.Printf("難易度上昇: レベル %d", g.difficulty)
+	}
 
-	// 一定間隔で新しい弾を追加
-	if time.Since(g.lastBulletAdd).Seconds() > 1.0/float64(bulletSpawnRate) {
-		g.addRandomBullet()
+	// 難易度に応じて弾の発生頻度を調整
+	bulletSpawnInterval := 1.0 / float64(bulletSpawnRate)
+	if time.Since(g.lastBulletAdd).Seconds() > bulletSpawnInterval {
+		// 難易度に応じて複数の弾を発射
+		bulletsToAdd := g.difficulty
+		for i := 0; i < bulletsToAdd; i++ {
+			g.addRandomBullet()
+		}
 		g.lastBulletAdd = time.Now()
 	}
 
@@ -278,8 +305,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		ebitenutil.DrawCircle(screen, g.player.x, g.player.y, g.player.size, color.RGBA{255, 255, 255, 255})
 	}
 
-	// 経過時間を表示
-	timeText := fmt.Sprintf("Time: %.2f", g.currentTime)
+	// 経過時間と難易度を表示
+	timeText := fmt.Sprintf("Time: %.2f  Difficulty: %d", g.currentTime, g.difficulty)
 	ebitenutil.DebugPrintAt(screen, timeText, 20, 20)
 
 	// スコアアニメーションを描画
