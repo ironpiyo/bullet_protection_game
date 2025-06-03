@@ -40,6 +40,15 @@ type Bullet struct {
 	color     color.RGBA
 }
 
+// スコアアニメーションの構造体
+type ScoreAnimation struct {
+	score     float64
+	x, y      float64
+	scale     float64
+	alpha     float64
+	lifetime  float64
+}
+
 // ゲームの状態を管理する構造体
 type Game struct {
 	player        Player
@@ -49,6 +58,12 @@ type Game struct {
 	currentTime   float64
 	scores        []float64
 	lastBulletAdd time.Time
+	
+	// UI効果用の変数
+	gameOverAlpha    float64  // ゲームオーバー画面の透明度
+	gameOverScale    float64  // ゲームオーバーテキストのスケール
+	rankingAppear    float64  // ランキング表示の進行度
+	scoreAnimations  []ScoreAnimation // スコアアニメーション
 }
 
 // NewGame は新しいゲームインスタンスを作成する
@@ -65,6 +80,12 @@ func NewGame() *Game {
 		currentTime:  0,
 		scores:       make([]float64, 0, maxRankingScores),
 		lastBulletAdd: time.Now(),
+		
+		// UI効果の初期化
+		gameOverAlpha: 0,
+		gameOverScale: 0.5,
+		rankingAppear: 0,
+		scoreAnimations: make([]ScoreAnimation, 0),
 	}
 
 	// 初期の弾を生成
@@ -125,10 +146,34 @@ func (g *Game) addRandomBullet() {
 
 // Update はゲームの状態を更新する
 func (g *Game) Update() error {
-	// ゲームオーバー時のリスタート処理
+	// ゲームオーバー時のリスタート処理とアニメーション
 	if g.gameOver {
+		// ゲームオーバーアニメーションの更新
+		if g.gameOverAlpha < 0.8 {
+			g.gameOverAlpha += 0.02
+		}
+		
+		if g.gameOverScale < 1.2 {
+			g.gameOverScale += 0.03
+		} else if g.gameOverScale > 1.2 {
+			g.gameOverScale = 1.2
+		}
+		
+		// ランキング表示のアニメーション
+		if g.rankingAppear < 1.0 {
+			g.rankingAppear += 0.03
+		}
+		
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			// 現在のスコアを保持
+			oldScores := g.scores
+			
+			// ゲームをリセット
 			*g = *NewGame()
+			
+			// スコアを復元
+			g.scores = oldScores
+			
 			return nil
 		}
 		return nil
@@ -147,6 +192,19 @@ func (g *Game) Update() error {
 		g.addRandomBullet()
 		g.lastBulletAdd = time.Now()
 	}
+
+	// スコアアニメーションの更新
+	newScoreAnims := make([]ScoreAnimation, 0)
+	for _, anim := range g.scoreAnimations {
+		anim.lifetime -= 0.016 // 約60FPSを想定
+		anim.scale += 0.02
+		anim.alpha -= 0.02
+		
+		if anim.lifetime > 0 && anim.alpha > 0 {
+			newScoreAnims = append(newScoreAnims, anim)
+		}
+	}
+	g.scoreAnimations = newScoreAnims
 
 	// 弾の移動と画面外判定
 	newBullets := make([]Bullet, 0, len(g.bullets))
@@ -171,6 +229,16 @@ func (g *Game) Update() error {
 			
 			// スコアを記録
 			g.scores = append(g.scores, g.currentTime)
+			
+			// スコアアニメーションを追加
+			g.scoreAnimations = append(g.scoreAnimations, ScoreAnimation{
+				score:    g.currentTime,
+				x:        screenWidth / 2,
+				y:        screenHeight / 3,
+				scale:    1.0,
+				alpha:    1.0,
+				lifetime: 2.0,
+			})
 			
 			// スコアを降順にソート
 			sort.Slice(g.scores, func(i, j int) bool {
@@ -214,16 +282,62 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	timeText := fmt.Sprintf("Time: %.2f", g.currentTime)
 	ebitenutil.DebugPrintAt(screen, timeText, 20, 20)
 
+	// スコアアニメーションを描画
+	for _, anim := range g.scoreAnimations {
+		// スケールと透明度に基づいて描画
+		scoreText := fmt.Sprintf("%.2f seconds", anim.score)
+		
+		// 文字サイズを計算（スケールに応じて）
+		textWidth := float64(len(scoreText) * 6) * anim.scale
+		textX := anim.x - textWidth/2
+		
+		// テキストを描画（簡易的なスケーリング）
+		for i := 0; i < int(anim.scale*2); i++ {
+			ebitenutil.DebugPrintAt(screen, scoreText, int(textX), int(anim.y)+i)
+		}
+	}
+
 	// ゲームオーバー時の表示
 	if g.gameOver {
-		gameOverText := "GAME OVER - Press SPACE to restart"
-		ebitenutil.DebugPrintAt(screen, gameOverText, screenWidth/2-len(gameOverText)*3, screenHeight/2)
-
-		// ランキングを表示
-		ebitenutil.DebugPrintAt(screen, "TOP SCORES:", screenWidth/2-50, screenHeight/2+30)
-		for i, score := range g.scores {
-			scoreText := fmt.Sprintf("%d. %.2f seconds", i+1, score)
-			ebitenutil.DebugPrintAt(screen, scoreText, screenWidth/2-50, screenHeight/2+50+i*20)
+		// 半透明のオーバーレイを描画
+		overlayColor := color.RGBA{0, 0, 0, uint8(g.gameOverAlpha * 200)}
+		ebitenutil.DrawRect(screen, 0, 0, float64(screenWidth), float64(screenHeight), overlayColor)
+		
+		// ゲームオーバーテキストを描画（拡大/縮小アニメーション付き）
+		gameOverText := "GAME OVER"
+		textWidth := float64(len(gameOverText) * 8) * g.gameOverScale
+		textX := (float64(screenWidth) - textWidth) / 2
+		textY := float64(screenHeight)/3 - 20
+		
+		// テキストを複数回描画してボールド効果を出す
+		for i := 0; i < int(g.gameOverScale*3); i++ {
+			ebitenutil.DebugPrintAt(screen, gameOverText, int(textX), int(textY)+i)
+		}
+		
+		// リスタート案内
+		restartText := "Press SPACE to restart"
+		restartX := screenWidth/2 - len(restartText)*3
+		restartY := int(textY) + 40
+		ebitenutil.DebugPrintAt(screen, restartText, restartX, restartY)
+		
+		// ランキングを表示（徐々に表示されるアニメーション）
+		if g.rankingAppear > 0 {
+			rankingTitleY := screenHeight/2 + 30
+			ebitenutil.DebugPrintAt(screen, "TOP SCORES:", screenWidth/2-50, rankingTitleY)
+			
+			// 各スコアを表示（徐々に表示）
+			maxScoresToShow := int(float64(len(g.scores)) * g.rankingAppear)
+			for i := 0; i < maxScoresToShow && i < len(g.scores); i++ {
+				scoreText := fmt.Sprintf("%d. %.2f seconds", i+1, g.scores[i])
+				
+				// アニメーション効果（少しずつ右から現れる）
+				offset := int((1.0 - g.rankingAppear) * 100)
+				if offset < 0 {
+					offset = 0
+				}
+				
+				ebitenutil.DebugPrintAt(screen, scoreText, screenWidth/2-50+offset, rankingTitleY+20+i*20)
+			}
 		}
 	}
 }
