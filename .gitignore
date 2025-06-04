@@ -6,6 +6,7 @@
 *.dylib
 *.test
 *.out
+/game  # 実行可能ファイル
 
 # Goの依存関係キャッシュ
 /vendor/
@@ -28,6 +29,7 @@ Thumbs.db
 # ビルド出力
 /bin/
 /dist/
+/tmp/  # Airの一時ディレクトリ
 
 # デバッグファイル
 debug
