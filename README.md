@@ -37,15 +37,19 @@
   - golang.org/x/image/font
 
 ## ファイル構成
-- `main.go`: ゲームのメインコード
+- `cmd/main.go`: エントリーポイント
+- `internal/entity/`: プレイヤー、弾、シールドなどのエンティティ
+- `internal/game/`: ゲームロジック
+- `internal/render/`: 描画関連の機能
 - `go.mod`: Goモジュール定義ファイル
 - `go.sum`: 依存関係のチェックサムファイル
+- `.air.toml`: ホットリロード設定ファイル
 - `.gitignore`: Git管理から除外するファイルの設定
 
 ## 実行手順
 
 ### 必要条件
-- Go言語 (バージョン1.16以上)
+- Go言語 (バージョン1.20以上)
 - OpenGLをサポートするグラフィックドライバ
 
 ### インストール方法
@@ -61,8 +65,30 @@
    ```
 
 ### 実行方法
+#### 通常実行
 ```
-go run main.go
+go run cmd/main.go
+```
+
+#### ビルドして実行
+```
+go build -o game ./cmd/main.go
+./game
+```
+
+#### ホットリロード開発（Air使用）
+1. Airのインストール
+```
+go install github.com/air-verse/air@latest
+```
+
+2. Airを使って実行（コード変更時に自動再読み込み）
+```
+$GOPATH/bin/air
+```
+または
+```
+~/go/bin/air
 ```
 
 ### 操作方法
