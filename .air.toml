@@ -1,0 +1,28 @@
+# .air.toml
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# ビルドコマンド
+cmd = "go build -o ./tmp/main ./cmd/main.go"
+# 実行ファイル
+bin = "tmp/main"
+# 監視対象のファイル拡張子
+include_ext = ["go"]
+# 監視対象から除外するディレクトリ
+exclude_dir = ["tmp", "vendor"]
+# 監視対象から除外するファイル
+exclude_file = []
+# 変更を監視する間隔（ミリ秒）
+delay = 1000
+
+[log]
+# ログの詳細レベル
+level = "debug"
+
+[color]
+# ログの色付け
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
