@@ -44,6 +44,9 @@ type Game struct {
 	// 難易度関連の変数
 	Difficulty       int
 	LastDifficultyIncrease time.Time
+	
+	// 爆発関連
+	Explosion     *entity.Explosion
 }
 
 // NewGame は新しいゲームインスタンスを作成する
@@ -67,6 +70,9 @@ func NewGame() *Game {
 		// 難易度の初期化
 		Difficulty: 1,
 		LastDifficultyIncrease: time.Now(),
+		
+		// 爆発は初期状態ではnil
+		Explosion: nil,
 	}
 
 	// 初期の弾を生成

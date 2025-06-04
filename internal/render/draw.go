@@ -25,6 +25,11 @@ func Draw(screen *ebiten.Image, g *game.Game) {
 		drawBullet(screen, b)
 	}
 
+	// 爆発エフェクトを描画
+	if g.Explosion != nil && g.Explosion.Active {
+		drawExplosion(screen, g.Explosion)
+	}
+
 	// プレイヤーを描画
 	if !g.GameOver {
 		drawPlayer(screen, g.Player, g.CurrentTime)
@@ -33,6 +38,9 @@ func Draw(screen *ebiten.Image, g *game.Game) {
 	// 経過時間と難易度を表示
 	timeText := fmt.Sprintf("Time: %.2f  Difficulty: %d", g.CurrentTime, g.Difficulty)
 	ebitenutil.DebugPrintAt(screen, timeText, 20, 20)
+
+	// 爆発スキルのクールダウン表示
+	drawBombCooldown(screen, g.Player)
 
 	// スコアアニメーションを描画
 	for _, anim := range g.ScoreAnimations {
@@ -150,6 +158,45 @@ func drawShieldItem(screen *ebiten.Image, shieldItem *entity.ShieldItem) {
 		y2 := shieldItem.Y + math.Sin(a+0.2) * (radius * 0.5)
 		ebitenutil.DrawLine(screen, x1, y1, x2, y2, color.RGBA{255, 255, 255, 200})
 	}
+}
+
+// drawExplosion は爆発エフェクトを描画する
+func drawExplosion(screen *ebiten.Image, explosion *entity.Explosion) {
+	// 爆発の円を描画
+	ebitenutil.DrawCircle(screen, explosion.X, explosion.Y, explosion.Radius, explosion.GetColor())
+	
+	// 爆発の波紋を描画
+	waveColor := explosion.GetColor()
+	waveColor.A = uint8(float64(waveColor.A) * 0.5)
+	ebitenutil.DrawCircle(screen, explosion.X, explosion.Y, explosion.Radius * 0.8, waveColor)
+	
+	// 中心の明るい部分
+	centerColor := color.RGBA{255, 255, 200, uint8(explosion.Alpha * 255)}
+	ebitenutil.DrawCircle(screen, explosion.X, explosion.Y, explosion.Radius * 0.3, centerColor)
+}
+
+// drawBombCooldown はボムのクールダウンを表示する
+func drawBombCooldown(screen *ebiten.Image, player *entity.Player) {
+	// クールダウン表示の位置
+	x, y := 20, 40
+	width := 100.0
+	height := 10.0
+	
+	// 背景バー
+	ebitenutil.DrawRect(screen, float64(x), float64(y), width, height, color.RGBA{50, 50, 50, 200})
+	
+	// クールダウン進行バー
+	if !player.BombAvailable {
+		progress := 1.0 - (player.BombCooldown / player.BombCooldownMax)
+		ebitenutil.DrawRect(screen, float64(x), float64(y), width * progress, height, color.RGBA{0, 200, 255, 200})
+	} else {
+		// 使用可能時は満タン
+		ebitenutil.DrawRect(screen, float64(x), float64(y), width, height, color.RGBA{0, 255, 255, 200})
+	}
+	
+	// テキスト表示
+	bombText := "BOMB [X]"
+	ebitenutil.DebugPrintAt(screen, bombText, x, y-5)
 }
 
 // drawScoreAnimation はスコアアニメーションを描画する

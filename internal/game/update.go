@@ -2,6 +2,7 @@ package game
 
 import (
 	"log"
+	"math"
 	"math/rand"
 	"time"
 
@@ -26,6 +27,28 @@ func (g *Game) Update() error {
 	// 経過時間を更新
 	g.CurrentTime = time.Since(g.StartTime).Seconds()
 	
+	// 爆発スキルのクールダウン更新
+	g.Player.UpdateBombCooldown(0.016) // 約60FPSを想定
+	
+	// Xキーで爆発スキルを発動
+	if inpututil.IsKeyJustPressed(ebiten.KeyX) {
+		if g.Player.UseBomb() {
+			// 爆発エフェクトを作成
+			g.Explosion = entity.NewExplosion(g.Player.X, g.Player.Y, g.Player.BombRadius)
+			
+			// 爆発範囲内の弾を消去
+			g.clearBulletsInExplosion()
+			
+			// 効果音を再生（将来的に実装）
+			// playSound("explosion.wav")
+		}
+	}
+	
+	// 爆発エフェクトの更新
+	if g.Explosion != nil && g.Explosion.Active {
+		g.Explosion.Update(0.016)
+	}
+	
 	// 難易度の更新
 	g.updateDifficulty()
 	
@@ -42,6 +65,33 @@ func (g *Game) Update() error {
 	g.updateBullets()
 
 	return nil
+}
+
+// clearBulletsInExplosion は爆発範囲内の弾を消去する
+func (g *Game) clearBulletsInExplosion() {
+	if g.Explosion == nil {
+		return
+	}
+	
+	newBullets := make([]*entity.Bullet, 0, len(g.Bullets))
+	clearedCount := 0
+	
+	for _, b := range g.Bullets {
+		// 弾と爆発中心との距離を計算
+		dx := b.X - g.Explosion.X
+		dy := b.Y - g.Explosion.Y
+		distance := math.Sqrt(dx*dx + dy*dy)
+		
+		// 爆発範囲外の弾だけを残す
+		if distance > g.Player.BombRadius {
+			newBullets = append(newBullets, b)
+		} else {
+			clearedCount++
+		}
+	}
+	
+	g.Bullets = newBullets
+	log.Printf("爆発スキルで%d個の弾を消去しました", clearedCount)
 }
 
 // updateGameOver はゲームオーバー時の更新処理
