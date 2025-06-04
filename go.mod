@@ -1,4 +1,4 @@
-module helloworld
+module game
 
 go 1.24
 
