@@ -24,12 +24,18 @@ const (
 	bulletSpeedMax   = 5.0
 	bulletSpawnRate  = 5  // 1秒あたりの新しい弾の数
 	maxRankingScores = 5  // ランキングに表示するスコア数
+	
+	// シールド関連の定数
+	shieldDurability = 3  // シールドの耐久値
+	shieldItemSize   = 15 // シールドアイテムのサイズ
+	shieldSpawnRate  = 0.05 // シールドアイテムの出現確率（1フレームあたり）
 )
 
 // プレイヤーの構造体
 type Player struct {
 	x, y float64
 	size float64
+	shield int // シールドの耐久値
 }
 
 // 弾の構造体
@@ -38,6 +44,16 @@ type Bullet struct {
 	vx, vy    float64
 	size      float64
 	color     color.RGBA
+}
+
+// シールドアイテムの構造体
+type ShieldItem struct {
+	x, y      float64
+	size      float64
+	active    bool
+	angle     float64  // 回転角度
+	glowSize  float64  // 輝きのサイズ
+	glowDir   float64  // 輝きの方向（拡大/縮小）
 }
 
 // スコアアニメーションの構造体
@@ -53,6 +69,7 @@ type ScoreAnimation struct {
 type Game struct {
 	player        Player
 	bullets       []Bullet
+	shieldItem    ShieldItem // シールドアイテム
 	gameOver      bool
 	startTime     time.Time
 	currentTime   float64
@@ -77,8 +94,18 @@ func NewGame() *Game {
 			x:    float64(screenWidth) / 2,
 			y:    float64(screenHeight) / 2,
 			size: playerSize,
+			shield: 0, // 初期状態ではシールドなし
 		},
 		bullets:      make([]Bullet, 0, initialBullets),
+		shieldItem: ShieldItem{
+			x: -100, // 画面外に配置
+			y: -100,
+			size: shieldItemSize,
+			active: false,
+			angle: 0,
+			glowSize: 0,
+			glowDir: 0.1,
+		},
 		gameOver:     false,
 		startTime:    time.Now(),
 		currentTime:  0,
@@ -219,6 +246,41 @@ func (g *Game) Update() error {
 		}
 		g.lastBulletAdd = time.Now()
 	}
+	
+	// シールドアイテムの生成（ランダムに）
+	if !g.shieldItem.active && rand.Float64() < shieldSpawnRate {
+		g.spawnShieldItem()
+	}
+	
+	// シールドアイテムのアニメーション更新
+	if g.shieldItem.active {
+		// 回転させる
+		g.shieldItem.angle += 0.05
+		
+		// 輝きのサイズを変化させる
+		g.shieldItem.glowSize += g.shieldItem.glowDir
+		if g.shieldItem.glowSize > 3 || g.shieldItem.glowSize < 0 {
+			g.shieldItem.glowDir *= -1
+		}
+	}
+	
+	// シールドアイテムとプレイヤーの衝突判定
+	if g.shieldItem.active {
+		dx := g.player.x - g.shieldItem.x
+		dy := g.player.y - g.shieldItem.y
+		distance := math.Sqrt(dx*dx + dy*dy)
+		
+		if distance < g.player.size+g.shieldItem.size {
+			// シールドを獲得
+			g.player.shield = shieldDurability
+			g.shieldItem.active = false
+			g.shieldItem.x = -100 // 画面外に移動
+			g.shieldItem.y = -100
+			
+			// デバッグ用にシールド獲得を表示
+			log.Printf("シールド獲得！ 耐久値: %d", g.player.shield)
+		}
+	}
 
 	// スコアアニメーションの更新
 	newScoreAnims := make([]ScoreAnimation, 0)
@@ -251,33 +313,40 @@ func (g *Game) Update() error {
 		distance := math.Sqrt(dx*dx + dy*dy)
 		
 		if distance < g.player.size+b.size {
-			// 衝突した場合、ゲームオーバー
-			g.gameOver = true
-			
-			// スコアを記録
-			g.scores = append(g.scores, g.currentTime)
-			
-			// スコアアニメーションを追加
-			g.scoreAnimations = append(g.scoreAnimations, ScoreAnimation{
-				score:    g.currentTime,
-				x:        screenWidth / 2,
-				y:        screenHeight / 3,
-				scale:    1.0,
-				alpha:    1.0,
-				lifetime: 2.0,
-			})
-			
-			// スコアを降順にソート
-			sort.Slice(g.scores, func(i, j int) bool {
-				return g.scores[i] > g.scores[j]
-			})
-			
-			// 上位スコアだけを保持
-			if len(g.scores) > maxRankingScores {
-				g.scores = g.scores[:maxRankingScores]
+			// シールドがある場合
+			if g.player.shield > 0 {
+				g.player.shield--
+				log.Printf("シールドが弾を防いだ！ 残り耐久値: %d", g.player.shield)
+				continue // この弾は消える
+			} else {
+				// シールドがない場合、ゲームオーバー
+				g.gameOver = true
+				
+				// スコアを記録
+				g.scores = append(g.scores, g.currentTime)
+				
+				// スコアアニメーションを追加
+				g.scoreAnimations = append(g.scoreAnimations, ScoreAnimation{
+					score:    g.currentTime,
+					x:        screenWidth / 2,
+					y:        screenHeight / 3,
+					scale:    1.0,
+					alpha:    1.0,
+					lifetime: 2.0,
+				})
+				
+				// スコアを降順にソート
+				sort.Slice(g.scores, func(i, j int) bool {
+					return g.scores[i] > g.scores[j]
+				})
+				
+				// 上位スコアだけを保持
+				if len(g.scores) > maxRankingScores {
+					g.scores = g.scores[:maxRankingScores]
+				}
+				
+				break
 			}
-			
-			break
 		}
 		
 		newBullets = append(newBullets, b)
@@ -295,6 +364,34 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// 背景を黒で塗りつぶす
 	screen.Fill(color.RGBA{20, 20, 40, 255})
 
+	// シールドアイテムを描画
+	if g.shieldItem.active {
+		// 外側の輝き
+		glowColor := color.RGBA{0, 255, 255, 100}
+		ebitenutil.DrawCircle(screen, g.shieldItem.x, g.shieldItem.y, 
+							 g.shieldItem.size + g.shieldItem.glowSize, glowColor)
+		
+		// メインの円
+		ebitenutil.DrawCircle(screen, g.shieldItem.x, g.shieldItem.y, 
+							 g.shieldItem.size, color.RGBA{0, 200, 255, 200})
+		
+		// 内側の円
+		ebitenutil.DrawCircle(screen, g.shieldItem.x, g.shieldItem.y, 
+							 g.shieldItem.size * 0.6, color.RGBA{100, 200, 255, 255})
+		
+		// 回転する星型のエフェクト
+		angle := g.shieldItem.angle
+		radius := g.shieldItem.size * 0.8
+		for i := 0; i < 5; i++ {
+			a := angle + float64(i) * math.Pi * 0.4
+			x1 := g.shieldItem.x + math.Cos(a) * radius
+			y1 := g.shieldItem.y + math.Sin(a) * radius
+			x2 := g.shieldItem.x + math.Cos(a+0.2) * (radius * 0.5)
+			y2 := g.shieldItem.y + math.Sin(a+0.2) * (radius * 0.5)
+			ebitenutil.DrawLine(screen, x1, y1, x2, y2, color.RGBA{255, 255, 255, 200})
+		}
+	}
+
 	// 弾を描画
 	for _, b := range g.bullets {
 		ebitenutil.DrawCircle(screen, b.x, b.y, b.size, b.color)
@@ -303,6 +400,65 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// プレイヤーを描画（白い円）
 	if !g.gameOver {
 		ebitenutil.DrawCircle(screen, g.player.x, g.player.y, g.player.size, color.RGBA{255, 255, 255, 255})
+		
+		// シールドがある場合、プレイヤーの周りにシールドを描画
+		if g.player.shield > 0 {
+			// シールドの色は耐久値によって変化
+			var shieldColor color.RGBA
+			switch g.player.shield {
+			case 3:
+				shieldColor = color.RGBA{0, 255, 255, 100} // 明るい水色（半透明）
+			case 2:
+				shieldColor = color.RGBA{100, 200, 255, 100} // やや暗い水色（半透明）
+			case 1:
+				shieldColor = color.RGBA{150, 150, 255, 100} // 紫がかった色（半透明）
+			}
+			
+			// シールドを描画（プレイヤーと同じサイズだが、半透明）
+			ebitenutil.DrawCircle(screen, g.player.x, g.player.y, g.player.size, shieldColor)
+			
+			// 回転する16角形のエフェクト
+			particleCount := 16 // 16角形
+			baseAngle := g.currentTime * 1.5 // 時間に基づいて回転（速度調整）
+			
+			// エフェクトとプレイヤーの間の距離を広げる
+			particleDistance := g.player.size * 2.0 // プレイヤーからの距離を2倍に
+			
+			// 16角形の頂点を描画
+			for i := 0; i < particleCount; i++ {
+				angle := baseAngle + float64(i) * (2 * math.Pi / float64(particleCount))
+				
+				// 粒子の位置を計算
+				particleX := g.player.x + math.Cos(angle) * particleDistance
+				particleY := g.player.y + math.Sin(angle) * particleDistance
+				
+				// 粒子を描画
+				particleSize := 2.5
+				particleColor := color.RGBA{255, 255, 255, 200} // 白い光の粒子
+				ebitenutil.DrawCircle(screen, particleX, particleY, particleSize, particleColor)
+			}
+			
+			// 16角形の辺を描画（頂点同士を線で結ぶ）
+			for i := 0; i < particleCount; i++ {
+				angle1 := baseAngle + float64(i) * (2 * math.Pi / float64(particleCount))
+				angle2 := baseAngle + float64((i+1)%particleCount) * (2 * math.Pi / float64(particleCount))
+				
+				x1 := g.player.x + math.Cos(angle1) * particleDistance
+				y1 := g.player.y + math.Sin(angle1) * particleDistance
+				x2 := g.player.x + math.Cos(angle2) * particleDistance
+				y2 := g.player.y + math.Sin(angle2) * particleDistance
+				
+				// 線の色は耐久値に応じて変える
+				lineColor := shieldColor
+				lineColor.A = 150 // 線は少し濃く
+				
+				ebitenutil.DrawLine(screen, x1, y1, x2, y2, lineColor)
+			}
+			
+			// シールドの耐久値を表示
+			shieldText := fmt.Sprintf("%d", g.player.shield)
+			ebitenutil.DebugPrintAt(screen, shieldText, int(g.player.x)-3, int(g.player.y)-3)
+		}
 	}
 
 	// 経過時間と難易度を表示
@@ -386,4 +542,11 @@ func main() {
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
+}
+// シールドアイテムをランダムな位置に生成する
+func (g *Game) spawnShieldItem() {
+	// 画面内のランダムな位置に配置
+	g.shieldItem.x = rand.Float64() * (screenWidth - 2*shieldItemSize) + shieldItemSize
+	g.shieldItem.y = rand.Float64() * (screenHeight - 2*shieldItemSize) + shieldItemSize
+	g.shieldItem.active = true
 }
