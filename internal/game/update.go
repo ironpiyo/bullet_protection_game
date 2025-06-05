@@ -9,6 +9,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	
+	"game/internal/config"
 	"game/internal/entity"
 )
 
@@ -28,7 +29,7 @@ func (g *Game) Update() error {
 	g.CurrentTime = time.Since(g.StartTime).Seconds()
 	
 	// 爆発スキルのクールダウン更新
-	g.Player.UpdateBombCooldown(0.016) // 約60FPSを想定
+	g.Player.UpdateBombCooldown(config.DeltaTime)
 	
 	// Xキーで爆発スキルを発動
 	if inpututil.IsKeyJustPressed(ebiten.KeyX) {
@@ -46,7 +47,7 @@ func (g *Game) Update() error {
 	
 	// 爆発エフェクトの更新
 	if g.Explosion != nil && g.Explosion.Active {
-		g.Explosion.Update(0.016)
+		g.Explosion.Update(config.DeltaTime)
 	}
 	
 	// 難易度の更新
@@ -135,7 +136,7 @@ func (g *Game) updateDifficulty() {
 // updateBulletSpawn は弾の生成を更新する
 func (g *Game) updateBulletSpawn() {
 	// 難易度に応じて弾の発生頻度を調整
-	bulletSpawnInterval := 1.0 / float64(BulletSpawnRate)
+	bulletSpawnInterval := 1.0 / float64(config.BulletSpawnRate)
 	if time.Since(g.LastBulletAdd).Seconds() > bulletSpawnInterval {
 		// 難易度に応じて複数の弾を発射
 		bulletsToAdd := g.Difficulty
@@ -149,8 +150,8 @@ func (g *Game) updateBulletSpawn() {
 // updateShieldItem はシールドアイテムを更新する
 func (g *Game) updateShieldItem() {
 	// シールドアイテムの生成（ランダムに）
-	if !g.ShieldItem.Active && rand.Float64() < ShieldSpawnRate {
-		g.ShieldItem.Spawn(ScreenWidth, ScreenHeight)
+	if !g.ShieldItem.Active && rand.Float64() < config.ShieldSpawnRate {
+		g.ShieldItem.Spawn(config.ScreenWidth, config.ScreenHeight)
 	}
 	
 	// シールドアイテムのアニメーション更新
@@ -159,7 +160,7 @@ func (g *Game) updateShieldItem() {
 	// シールドアイテムとプレイヤーの衝突判定
 	if g.ShieldItem.CollidesWith(g.Player.X, g.Player.Y, g.Player.Size) {
 		// シールドを獲得
-		g.Player.AddShield(ShieldDurability)
+		g.Player.AddShield(config.ShieldDurability)
 		g.ShieldItem.Deactivate()
 		
 		// デバッグ用にシールド獲得を表示
@@ -171,7 +172,7 @@ func (g *Game) updateShieldItem() {
 func (g *Game) updateScoreAnimations() {
 	newScoreAnims := make([]*entity.ScoreAnimation, 0)
 	for _, anim := range g.ScoreAnimations {
-		anim.Update(0.016) // 約60FPSを想定
+		anim.Update(config.DeltaTime)
 		
 		if anim.IsActive() {
 			newScoreAnims = append(newScoreAnims, anim)
@@ -188,7 +189,7 @@ func (g *Game) updateBullets() {
 		b.Update()
 		
 		// 画面外に出た弾は削除
-		if b.IsOutOfScreen(ScreenWidth, ScreenHeight, 100) {
+		if b.IsOutOfScreen(config.ScreenWidth, config.ScreenHeight, 100) {
 			continue
 		}
 		

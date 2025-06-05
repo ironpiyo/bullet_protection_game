@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 
+	"game/internal/config"
 	"game/internal/entity"
 	"game/internal/game"
 )
@@ -218,13 +219,13 @@ func drawScoreAnimation(screen *ebiten.Image, anim *entity.ScoreAnimation) {
 func drawGameOver(screen *ebiten.Image, g *game.Game) {
 	// 半透明のオーバーレイを描画
 	overlayColor := color.RGBA{0, 0, 0, uint8(g.GameOverAlpha * 200)}
-	ebitenutil.DrawRect(screen, 0, 0, float64(game.ScreenWidth), float64(game.ScreenHeight), overlayColor)
+	ebitenutil.DrawRect(screen, 0, 0, float64(config.ScreenWidth), float64(config.ScreenHeight), overlayColor)
 	
 	// ゲームオーバーテキストを描画（拡大/縮小アニメーション付き）
 	gameOverText := "GAME OVER"
 	textWidth := float64(len(gameOverText) * 8) * g.GameOverScale
-	textX := (float64(game.ScreenWidth) - textWidth) / 2
-	textY := float64(game.ScreenHeight)/3 - 20
+	textX := (float64(config.ScreenWidth) - textWidth) / 2
+	textY := float64(config.ScreenHeight)/3 - 20
 	
 	// テキストを複数回描画してボールド効果を出す
 	for i := 0; i < int(g.GameOverScale*3); i++ {
@@ -233,14 +234,14 @@ func drawGameOver(screen *ebiten.Image, g *game.Game) {
 	
 	// リスタート案内
 	restartText := "Press SPACE to restart"
-	restartX := game.ScreenWidth/2 - len(restartText)*3
+	restartX := config.ScreenWidth/2 - len(restartText)*3
 	restartY := int(textY) + 40
 	ebitenutil.DebugPrintAt(screen, restartText, restartX, restartY)
 	
 	// ランキングを表示（徐々に表示されるアニメーション）
 	if g.RankingAppear > 0 {
-		rankingTitleY := game.ScreenHeight/2 + 30
-		ebitenutil.DebugPrintAt(screen, "TOP SCORES:", game.ScreenWidth/2-50, rankingTitleY)
+		rankingTitleY := config.ScreenHeight/2 + 30
+		ebitenutil.DebugPrintAt(screen, "TOP SCORES:", config.ScreenWidth/2-50, rankingTitleY)
 		
 		// 各スコアを表示（徐々に表示）
 		maxScoresToShow := int(float64(len(g.Scores)) * g.RankingAppear)
@@ -253,7 +254,7 @@ func drawGameOver(screen *ebiten.Image, g *game.Game) {
 				offset = 0
 			}
 			
-			ebitenutil.DebugPrintAt(screen, scoreText, game.ScreenWidth/2-50+offset, rankingTitleY+20+i*20)
+			ebitenutil.DebugPrintAt(screen, scoreText, config.ScreenWidth/2-50+offset, rankingTitleY+20+i*20)
 		}
 	}
 }

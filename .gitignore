@@ -6,7 +6,7 @@
 *.dylib
 *.test
 *.out
-/game  # 実行可能ファイル
+game  # 実行可能ファイル
 
 # Goの依存関係キャッシュ
 /vendor/

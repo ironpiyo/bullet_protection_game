@@ -4,24 +4,8 @@ import (
 	"sort"
 	"time"
 
+	"game/internal/config"
 	"game/internal/entity"
-)
-
-const (
-	ScreenWidth      = 800
-	ScreenHeight     = 600
-	PlayerSize       = 10
-	BulletSize       = 8
-	InitialBullets   = 20
-	BulletSpeedMin   = 2.0
-	BulletSpeedMax   = 5.0
-	BulletSpawnRate  = 5  // 1秒あたりの新しい弾の数
-	MaxRankingScores = 5  // ランキングに表示するスコア数
-	
-	// シールド関連の定数
-	ShieldDurability = 3  // シールドの耐久値
-	ShieldItemSize   = 15 // シールドアイテムのサイズ
-	ShieldSpawnRate  = 0.05 // シールドアイテムの出現確率（1フレームあたり）
 )
 
 // Game はゲームの状態を管理する構造体
@@ -52,13 +36,13 @@ type Game struct {
 // NewGame は新しいゲームインスタンスを作成する
 func NewGame() *Game {
 	g := &Game{
-		Player:        entity.NewPlayer(float64(ScreenWidth)/2, float64(ScreenHeight)/2, PlayerSize),
-		Bullets:       make([]*entity.Bullet, 0, InitialBullets),
-		ShieldItem:    entity.NewShieldItem(ShieldItemSize),
+		Player:        entity.NewPlayer(float64(config.ScreenWidth)/2, float64(config.ScreenHeight)/2, config.PlayerSize),
+		Bullets:       make([]*entity.Bullet, 0, config.InitialBullets),
+		ShieldItem:    entity.NewShieldItem(config.ShieldItemSize),
 		GameOver:      false,
 		StartTime:     time.Now(),
 		CurrentTime:   0,
-		Scores:        make([]float64, 0, MaxRankingScores),
+		Scores:        make([]float64, 0, config.MaxRankingScores),
 		LastBulletAdd: time.Now(),
 		
 		// UI効果の初期化
@@ -76,7 +60,7 @@ func NewGame() *Game {
 	}
 
 	// 初期の弾を生成
-	for i := 0; i < InitialBullets; i++ {
+	for i := 0; i < config.InitialBullets; i++ {
 		g.addRandomBullet()
 	}
 
@@ -85,13 +69,13 @@ func NewGame() *Game {
 
 // addRandomBullet はランダムな位置と速度で新しい弾を追加する
 func (g *Game) addRandomBullet() {
-	bullet := entity.NewRandomBullet(ScreenWidth, ScreenHeight, BulletSize, BulletSpeedMin, BulletSpeedMax, g.Difficulty)
+	bullet := entity.NewRandomBullet(config.ScreenWidth, config.ScreenHeight, config.BulletSize, config.BulletSpeedMin, config.BulletSpeedMax, g.Difficulty)
 	g.Bullets = append(g.Bullets, bullet)
 }
 
 // Layout はウィンドウサイズを返す
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return ScreenWidth, ScreenHeight
+	return config.ScreenWidth, config.ScreenHeight
 }
 
 // Reset はゲームをリセットする（スコアは保持）
@@ -111,14 +95,14 @@ func (g *Game) AddScore(score float64) {
 	})
 	
 	// 上位スコアだけを保持
-	if len(g.Scores) > MaxRankingScores {
-		g.Scores = g.Scores[:MaxRankingScores]
+	if len(g.Scores) > config.MaxRankingScores {
+		g.Scores = g.Scores[:config.MaxRankingScores]
 	}
 	
 	// スコアアニメーションを追加
 	g.ScoreAnimations = append(g.ScoreAnimations, entity.NewScoreAnimation(
 		score,
-		ScreenWidth / 2,
-		ScreenHeight / 3,
+		config.ScreenWidth / 2,
+		config.ScreenHeight / 3,
 	))
 }

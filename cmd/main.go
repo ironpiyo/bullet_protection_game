@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"game/internal/config"
 	"game/internal/game"
 	"game/internal/render"
 )
@@ -35,7 +36,7 @@ func main() {
 	// 乱数の初期化
 	rand.Seed(time.Now().UnixNano())
 	
-	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
+	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
 	ebiten.SetWindowTitle("弾幕避けゲーム")
 	
 	g := &Game{
