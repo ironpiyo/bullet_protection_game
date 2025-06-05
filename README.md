@@ -41,9 +41,11 @@
 
 ## ファイル構成
 - `cmd/main.go`: エントリーポイント
+- `internal/config/`: 定数と設定値
 - `internal/entity/`: プレイヤー、弾、シールドなどのエンティティ
 - `internal/game/`: ゲームロジック
 - `internal/render/`: 描画関連の機能
+- `build/`: ビルド出力ディレクトリ
 - `go.mod`: Goモジュール定義ファイル
 - `go.sum`: 依存関係のチェックサムファイル
 - `.air.toml`: ホットリロード設定ファイル
@@ -75,8 +77,8 @@ go run cmd/main.go
 
 #### ビルドして実行
 ```
-go build -o game ./cmd/main.go
-./game
+go build -o build/game ./cmd/main.go
+./build/game
 ```
 
 #### ホットリロード開発（Air使用）
