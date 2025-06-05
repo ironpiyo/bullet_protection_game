@@ -6,7 +6,9 @@
 *.dylib
 *.test
 *.out
-game  # 実行可能ファイル
+
+# ビルド出力ディレクトリ
+/build/
 
 # Goの依存関係キャッシュ
 /vendor/
