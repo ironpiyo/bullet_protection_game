@@ -20,10 +20,10 @@ func (g *Game) Update() error {
 		return g.updateGameOver()
 	}
 
-	// プレイヤーの位置をマウスカーソルに合わせる
+	// プレイヤーの位置をマウスカーソルに合わせる（画面内に制限）
 	x, y := ebiten.CursorPosition()
-	g.Player.X = float64(x)
-	g.Player.Y = float64(y)
+	g.Player.X = math.Max(g.Player.Size, math.Min(float64(x), float64(config.ScreenWidth - g.Player.Size)))
+	g.Player.Y = math.Max(g.Player.Size, math.Min(float64(y), float64(config.ScreenHeight - g.Player.Size)))
 
 	// 経過時間を更新
 	g.CurrentTime = time.Since(g.StartTime).Seconds()
